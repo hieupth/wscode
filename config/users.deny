@@ -1,0 +1,7 @@
+# Users denied from having code-server instances
+# One username per line
+# Only used when users.allow is empty
+
+# Example:
+# guest
+# test

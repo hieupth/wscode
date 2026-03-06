@@ -23,7 +23,12 @@ Each user gets a deterministic port based on their UID:
 - No collision - UIDs are unique, ports are unique
 - Zero config - calculated at runtime, no storage needed
 
-### System Overview
+### Deployment Modes
+
+- **Simple (default)**: shared host + `--auth none` + Cloudflare Access, with mandatory Linux ACL to block cross-user access to `127.0.0.1:20000+uid`.
+- **High Security**: Python controller + Docker per user (isolated runtime, workspace, and network policy).
+
+### System Overview (Simple Mode)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -47,6 +52,20 @@ Each user gets a deterministic port based on their UID:
 │  │ systemd service │         │ :20000+ (bind 127.0.0.1)│   │
 │  └─────────────────┘         └─────────────────────────┘   │
 └────────────────────────────────────────────────────────────┘
+```
+
+## Project Structure
+
+```
+wscode/
+├── src/              # All source code
+│   ├── setup.sh
+│   ├── test.sh
+│   ├── lib/
+│   ├── templates/
+│   └── scripts/
+├── config/           # Config examples
+└── specs/            # Architecture docs
 ```
 
 ## Requirements

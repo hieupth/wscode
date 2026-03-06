@@ -1,0 +1,8 @@
+# Users allowed to have code-server instances
+# One username per line
+# Lines starting with # are comments
+
+# Example users:
+# alice
+# bob
+# charlie
