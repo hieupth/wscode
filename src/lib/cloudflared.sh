@@ -84,9 +84,23 @@ restart_cloudflared() {
     systemctl daemon-reload
     systemctl enable cloudflared
     systemctl restart cloudflared
-    
-    sleep 2
-    
+
+    # Wait for service to be fully started (Type=simple doesn't notify)
+    local max_wait=30
+    local waited=0
+    while [[ $waited -lt $max_wait ]]; do
+        if systemctl is-active cloudflared &> /dev/null; then
+            # Additional check: verify tunnel is registered
+            if journalctl -u cloudflared.service --since "5 seconds ago" | grep -q "Registered tunnel connection"; then
+                log_success "cloudflared running and tunnel connected"
+                return 0
+            fi
+        fi
+        sleep 1
+        ((waited++))
+    done
+
+    # Final check
     systemctl is-active cloudflared &> /dev/null || { log_error "Failed to start"; return 1; }
     
     log_success "cloudflared running"
