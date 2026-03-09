@@ -49,13 +49,14 @@ User=%i
 # Clear default ExecStart
 ExecStart=
 
-# Validation before starting
+# Validation and config generation before starting
 ExecStartPre=/bin/bash -c 'id %i > /dev/null || exit 1'
-ExecStartPre=/bin/bash -c 'uid=\$(id -u %i); [ \$((20000 + uid)) -le 65535 ] || exit 1'
-ExecStartPre=/bin/bash -c 'home=\$(getent passwd %i | cut -d: -f6); [ -n "\$home" ] || exit 1; mkdir -p "\$home/.local/share/code-server/extensions"'
+ExecStartPre=/bin/bash -c 'uid=$(id -u %i); [ $((20000 + uid)) -le 65535 ] || exit 1'
+ExecStartPre=/bin/bash -c 'home=$(getent passwd %i | cut -d: -f6); [ -n "$home" ] || exit 1; mkdir -p "$home/.local/share/code-server/extensions"'
+ExecStartPre=/bin/bash -c 'home=$(getent passwd %i | cut -d: -f6); uid=$(id -u %i); port=$((20000 + uid)); mkdir -p "$home/.config"; echo "bind-addr: 127.0.0.1:$port" > "$home/.config/code-server/config.yaml"; echo "auth: none" >> "$home/.config/code-server/config.yaml"'
 
-# Start code-server with dynamic port
-ExecStart=/bin/bash -c 'home=\$(getent passwd %i | cut -d: -f6); uid=\$(id -u %i); port=\$((20000 + uid)); exec ${codeserver_bin} --bind-addr 127.0.0.1:\${port} --auth none --user-data-dir "\$home/.local/share/code-server" --extensions-dir "\$home/.local/share/code-server/extensions"'
+# Start code-server (config file determines bind-addr)
+ExecStart=${codeserver_bin}
 
 # Restart policy
 Restart=on-failure

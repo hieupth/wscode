@@ -1,6 +1,9 @@
-# cloudflared hardening overrides v0.2
+# cloudflared hardening overrides v0.3
 
 [Service]
+# Override Type=notify to Type=simple because cloudflared doesn't send sd_notify
+Type=simple
+
 # Basic hardening
 NoNewPrivileges=true
 PrivateTmp=true

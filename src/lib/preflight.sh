@@ -10,7 +10,7 @@ check_platform() {
     
     [[ ! -f /etc/os-release ]] && error_exit "Cannot determine OS: /etc/os-release not found"
     
-    source /etc/os-release
+    eval "$(grep -E "^(ID|PRETTY_NAME)=" /etc/os-release)"
     
     if [[ "$ID" != "debian" ]] && [[ "$ID" != "ubuntu" ]]; then
         error_exit "Unsupported OS: $ID (requires Debian or Ubuntu)"
