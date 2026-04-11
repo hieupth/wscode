@@ -1,8 +1,7 @@
-FROM debian:12-slim
+FROM manjarolinux/base:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies for testing
+RUN pacman -Sy --noconfirm --needed \
     bash \
     ca-certificates \
     coreutils \
@@ -11,10 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     grep \
     iproute2 \
     jq \
-    passwd \
+    shadow \
     sed \
     util-linux \
-    && rm -rf /var/lib/apt/lists/*
+    && pacman -Scc --noconfirm
 
 WORKDIR /workspace
 COPY . /workspace

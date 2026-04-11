@@ -1,126 +1,189 @@
 #!/bin/bash
-# acl.sh v0.3 - Localhost port ACL for user isolation
+# acl.sh v0.4 - Localhost port ACL for user isolation.
+#
+# Generates and applies nftables rules to enforce localhost port isolation:
+#   - Each user can only connect to their own code-server port (20000 + UID)
+#   - Root can connect to all ports (needed for cloudflared tunnel and health checks)
+#   - Cloudflared user (if it exists) can connect to all ports (tunnel routing)
+#   - All other cross-user connections on the 20000-65535 range are rejected
+#
+# The ACL is persisted as a systemd service (webcode-acl.service) so it
+# survives reboots. All generated content comes from template files (no heredocs).
 
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/common.sh"
 
-readonly ACL_FILE="/etc/wscode/acl.nft"
-readonly ACL_SERVICE="/etc/systemd/system/wscode-acl.service"
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
+# Output path for the nftables rules file
+readonly ACL_FILE="/etc/webcode/acl.nft"
+
+# Systemd service that applies the ACL on boot
+readonly ACL_SERVICE="/etc/systemd/system/webcode-acl.service"
+
+# ---------------------------------------------------------------------------
+# Cloudflared UID detection
+# ---------------------------------------------------------------------------
+
+# Detect the UID of the cloudflared system user.
+# The cloudflared service needs access to all user ports for tunnel routing.
+# Returns 0 if cloudflared runs as root (no separate user needed).
+# Output:
+#   UID of cloudflared user, or 0 if no separate cloudflared user exists
 detect_cloudflared_uid() {
-    if id cloudflared >/dev/null 2>&1; then
-        id -u cloudflared
-    else
-        echo 0
-    fi
+  if id cloudflared >/dev/null 2>&1; then
+    id -u cloudflared
+  else
+    echo 0
+  fi
 }
 
+# ---------------------------------------------------------------------------
+# ACL rule generation
+# ---------------------------------------------------------------------------
+
+# Generate nftables ACL rules for the given user list.
+# Uses the template file src/templates/acl.nft.tpl with variable substitution.
+# The template contains the static rule structure; this function provides
+# the dynamic per-user rules and cloudflared UID.
+# Params:
+#   $@ - List of usernames to generate rules for
+# Output:
+#   Complete nftables ruleset (written to ACL_FILE)
 generate_acl_rules() {
-    local users=("$@")
-    local cloudflared_uid
-    cloudflared_uid=$(detect_cloudflared_uid)
+  local users=("$@")
 
-    cat <<'EOF'
-table inet wscode {
-  chain output {
-    type filter hook output priority 0; policy accept;
-EOF
+  # Get cloudflared UID for the tunnel access rule
+  local cloudflared_uid
+  cloudflared_uid=$(detect_cloudflared_uid)
 
-    # Root always needs local access for operations and health checks.
-    cat <<'EOF'
-    meta skuid 0 ip daddr 127.0.0.1 tcp dport 20000-65535 accept
-    meta skuid 0 ip6 daddr ::1 tcp dport 20000-65535 accept
-EOF
+  # Build per-user rules as a string
+  # Each user gets: accept connections from their UID to their port only
+  local user_rules=""
+  local user uid port
+  for user in "${users[@]}"; do
+    uid=$(id -u "$user")
+    port=$(get_user_port "$user")
+    user_rules+="    meta skuid ${uid} ip daddr 127.0.0.1 tcp dport ${port} accept"$'\n'
+    user_rules+="    meta skuid ${uid} ip6 daddr ::1 tcp dport ${port} accept"$'\n'
+  done
 
-    if [[ "$cloudflared_uid" != "0" ]]; then
-        echo "    meta skuid ${cloudflared_uid} ip daddr 127.0.0.1 tcp dport 20000-65535 accept"
-        echo "    meta skuid ${cloudflared_uid} ip6 daddr ::1 tcp dport 20000-65535 accept"
-    fi
+  # Build cloudflared rules (only if cloudflared has its own UID)
+  local cloudflared_rules=""
+  if [[ "$cloudflared_uid" != "0" ]]; then
+    cloudflared_rules+="    meta skuid ${cloudflared_uid} ip daddr 127.0.0.1 tcp dport 20000-65535 accept"$'\n'
+    cloudflared_rules+="    meta skuid ${cloudflared_uid} ip6 daddr ::1 tcp dport 20000-65535 accept"$'\n'
+  fi
 
-    local user uid port
-    for user in "${users[@]}"; do
-        uid=$(id -u "$user")
-        port=$(get_user_port "$user")
-        echo "    meta skuid ${uid} ip daddr 127.0.0.1 tcp dport ${port} accept"
-        echo "    meta skuid ${uid} ip6 daddr ::1 tcp dport ${port} accept"
-    done
-
-    cat <<'EOF'
-    ip daddr 127.0.0.1 tcp dport 20000-65535 reject with icmpx type admin-prohibited
-    ip6 daddr ::1 tcp dport 20000-65535 reject with icmpx type admin-prohibited
-  }
+  # Render the template with all variables
+  local template_file="${TEMPLATE_DIR}/acl.nft.tpl"
+  if [[ -f "$template_file" ]]; then
+    # Use template file approach
+    local content
+    content=$(cat "$template_file")
+    content="${content//\{\{CLOUDFLARED_RULES\}\}/${cloudflared_rules}}"
+    content="${content//\{\{USER_RULES\}\}/${user_rules}}"
+    echo "$content"
+  else
+    error_exit "ACL template not found: $template_file"
+  fi
 }
-EOF
-}
 
+# ---------------------------------------------------------------------------
+# ACL systemd service installation
+# ---------------------------------------------------------------------------
+
+# Install the systemd service unit that applies ACL rules on boot.
+# Uses src/templates/webcode-acl.service.tpl template.
+# Params:
+#   $1 - Path to the nft binary (for the ExecStart commands)
 install_acl_service_unit() {
-    local nft_bin="$1"
+  local nft_bin="$1"
 
-    if [[ -f "$ACL_SERVICE" ]]; then
-        backup_file "$ACL_SERVICE"
-    fi
+  # Back up existing service file if present
+  if [[ -f "$ACL_SERVICE" ]]; then
+    backup_file "$ACL_SERVICE"
+  fi
 
-    cat > "$ACL_SERVICE" <<EOF
-[Unit]
-Description=Apply wscode localhost ACL
-After=network-online.target
-Wants=network-online.target
+  # Render the service template
+  local template_file="${TEMPLATE_DIR}/webcode-acl.service.tpl"
+  if [[ -f "$template_file" ]]; then
+    render_template "$template_file" "$ACL_SERVICE" \
+      NFT_BIN "$nft_bin" \
+      ACL_FILE "$ACL_FILE"
+  else
+    error_exit "ACL service template not found: $template_file"
+  fi
 
-[Service]
-Type=oneshot
-ExecStartPre=-${nft_bin} delete table inet wscode
-ExecStart=${nft_bin} -f ${ACL_FILE}
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    chmod 644 "$ACL_SERVICE"
+  chmod 644 "$ACL_SERVICE"
 }
 
+# ---------------------------------------------------------------------------
+# ACL setup orchestration
+# ---------------------------------------------------------------------------
+
+# Set up the complete localhost port ACL system.
+# 1. Generates nftables rules from the user list
+# 2. Writes rules to /etc/webcode/acl.nft
+# 3. Installs the webcode-acl.service systemd unit
+# 4. Applies rules immediately and enables the service for boot
 setup_local_port_acl() {
-    log_info "Setting up localhost ACL..."
+  log_info "Setting up localhost ACL..."
 
-    local users
-    mapfile -t users < <(get_enabled_users)
+  # Get all enabled users for rule generation
+  local users
+  mapfile -t users < <(get_enabled_users)
 
-    [[ ${#users[@]} -gt 0 ]] || error_exit "No users found for ACL generation"
+  # Must have at least one user to generate rules
+  [[ ${#users[@]} -gt 0 ]] || error_exit "No users found for ACL generation"
 
-    if [[ $DRY_RUN -eq 1 ]]; then
-        log_info "[DRY-RUN] Would generate ${ACL_FILE} and wscode-acl.service"
-        return 0
-    fi
+  # In dry-run mode, just log what would be done
+  if [[ $DRY_RUN -eq 1 ]]; then
+    log_info "[DRY-RUN] Would generate ${ACL_FILE} and webcode-acl.service"
+    return 0
+  fi
 
-    local nft_bin
-    nft_bin=$(command -v nft || true)
-    [[ -n "$nft_bin" ]] || error_exit "nft command not found. Install nftables package."
+  # Find the nft binary
+  local nft_bin
+  nft_bin=$(command -v nft || true)
+  [[ -n "$nft_bin" ]] || error_exit "nft command not found. Install nftables package."
 
-    if [[ -f "$ACL_FILE" ]]; then
-        backup_file "$ACL_FILE"
-    fi
+  # Ensure the config directory exists
+  ensure_dir /etc/webcode 0700 root:root
 
-    ensure_dir /etc/wscode 0700 root:root
-    generate_acl_rules "${users[@]}" > "$ACL_FILE"
-    chmod 600 "$ACL_FILE"
-    chown root:root "$ACL_FILE"
+  # Back up existing ACL file if present
+  if [[ -f "$ACL_FILE" ]]; then
+    backup_file "$ACL_FILE"
+  fi
 
-    install_acl_service_unit "$nft_bin"
+  # Generate and write the nftables rules
+  generate_acl_rules "${users[@]}" > "$ACL_FILE"
+  chmod 600 "$ACL_FILE"
+  chown root:root "$ACL_FILE"
 
-    # Refresh rules now and persist with systemd.
-    nft delete table inet wscode 2>/dev/null || true
-    nft -f "$ACL_FILE"
+  # Install the systemd service unit from template
+  install_acl_service_unit "$nft_bin"
 
-    systemctl daemon-reload
-    systemctl enable wscode-acl.service >/dev/null
-    systemctl restart wscode-acl.service
+  # Apply rules immediately:
+  # 1. Remove any existing table (clean slate)
+  # 2. Load the new rules
+  nft delete table inet webcode 2>/dev/null || true
+  nft -f "$ACL_FILE"
 
-    systemctl is-active wscode-acl.service >/dev/null 2>&1 || {
-        log_error "wscode-acl.service is not active"
-        systemctl status wscode-acl.service --no-pager || true
-        return 1
-    }
+  # Reload systemd and enable the ACL service
+  systemctl daemon-reload
+  systemctl enable webcode-acl.service >/dev/null
+  systemctl restart webcode-acl.service
 
-    log_success "Localhost ACL is active for ${#users[@]} user(s)"
+  # Verify the service started successfully
+  systemctl is-active webcode-acl.service >/dev/null 2>&1 || {
+    log_error "webcode-acl.service is not active"
+    systemctl status webcode-acl.service --no-pager || true
+    return 1
+  }
+
+  log_success "Localhost ACL is active for ${#users[@]} user(s)"
 }

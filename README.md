@@ -1,4 +1,4 @@
-# Web Server Code
+# webcode
 
 Self-hosted VS Code for teams, secured by Cloudflare Tunnel.
 
@@ -23,12 +23,7 @@ Each user gets a deterministic port based on their UID:
 - No collision - UIDs are unique, ports are unique
 - Zero config - calculated at runtime, no storage needed
 
-### Deployment Modes
-
-- **Simple (default)**: shared host + `--auth none` + Cloudflare Access, with mandatory Linux ACL to block cross-user access to `127.0.0.1:20000+uid`.
-- **High Security**: Python controller + Docker per user (isolated runtime, workspace, and network policy).
-
-### System Overview (Simple Mode)
+### System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -57,22 +52,61 @@ Each user gets a deterministic port based on their UID:
 ## Project Structure
 
 ```
-wscode/
-├── src/              # All source code
-│   ├── setup.sh
-│   ├── test.sh
-│   ├── lib/
-│   ├── templates/
-│   └── scripts/
-├── config/           # Config examples
-└── specs/            # Architecture docs
+webcode/
+├── src/
+│   ├── setup.sh          # Entry point
+│   ├── test.sh           # Test suite
+│   ├── lib/              # All modules (OS-agnostic)
+│   ├── templates/        # Template files (no inline heredocs)
+│   └── scripts/          # Docker test scripts
+├── config/               # Config examples
+├── deprecated/           # Old bash scripts (to remove)
+└── specs/                # Architecture docs
 ```
+
+## Supported Platforms
+
+- **OS**: Debian, Ubuntu, Raspbian, Manjaro, Arch, EndeavourOS
+- **Architecture**: amd64 (x86_64), arm64 (aarch64)
 
 ## Requirements
 
-- Debian/Ubuntu with systemd
+- Linux with systemd
 - Cloudflare account with Tunnel configured
 - Domain on Cloudflare
+- Tunnel credentials JSON file
+
+## Quick Start
+
+```bash
+# 1. Configure
+sudo mkdir -p /etc/webcode
+sudo cp config/settings.env.example /etc/webcode/config.env
+sudo cp your-tunnel-creds.json /etc/webcode/creds.json
+sudo chmod 600 /etc/webcode/config.env /etc/webcode/creds.json
+sudo chown root:root /etc/webcode/config.env /etc/webcode/creds.json
+
+# 2. Add users
+echo "alice" | sudo tee /etc/webcode/users.allow
+
+# 3. Install
+sudo ./src/setup.sh
+
+# 4. Verify
+sudo ./src/setup.sh --verify-only
+```
+
+## Docker Testing
+
+```bash
+# Debian test
+docker build -f Dockerfile.debian -t webcode:debian .
+docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:debian
+
+# Manjaro test
+docker build -f Dockerfile.manjaro -t webcode:manjaro .
+docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:manjaro
+```
 
 ## License
 

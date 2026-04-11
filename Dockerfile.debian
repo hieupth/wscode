@@ -1,0 +1,29 @@
+FROM debian:12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies for testing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    coreutils \
+    curl \
+    gawk \
+    grep \
+    iproute2 \
+    jq \
+    passwd \
+    sed \
+    util-linux \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . /workspace
+
+RUN chmod +x \
+    /workspace/src/setup.sh \
+    /workspace/src/test.sh \
+    /workspace/src/scripts/docker-smoke.sh \
+    /workspace/src/scripts/docker-test.sh
+
+ENTRYPOINT ["/workspace/src/scripts/docker-smoke.sh"]

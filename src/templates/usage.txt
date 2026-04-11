@@ -1,0 +1,33 @@
+webcode Installer v0.4.0
+
+Usage: sudo bash src/setup.sh [OPTIONS]
+
+Options:
+  --apply          Apply installation (default)
+  --dry-run        Preview without making changes
+  --verify-only    Only run verification
+  --rollback       Rollback to latest backup
+  --list-backups   List available backups
+  --debug          Enable debug output
+  --help           Show this help
+
+Examples:
+  sudo bash src/setup.sh                    # Run installation
+  sudo bash src/setup.sh --dry-run          # Preview changes
+  sudo bash src/setup.sh --verify-only      # Check current setup
+  sudo bash src/setup.sh --rollback         # Restore from backup
+
+Configuration:
+  Edit /etc/webcode/config.env before running
+  Required settings:
+    CF_TUNNEL_NAME     - Cloudflare tunnel name
+    CF_DOMAIN_BASE     - Base domain (e.g., code.example.com)
+    CF_CREDENTIALS_FILE - Path to tunnel credentials JSON
+  Optional user lists:
+    /etc/webcode/users.allow   - Required: list of allowed usernames
+    /etc/webcode/users.deny    - Optional: list of denied usernames
+  See config/settings.env.example for template
+
+Supported platforms:
+  OS:   Debian, Ubuntu, Raspbian, Manjaro, Arch, EndeavourOS
+  Arch: amd64 (x86_64), arm64 (aarch64)
