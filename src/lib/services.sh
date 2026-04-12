@@ -127,19 +127,13 @@ enable_code_server_for_user() {
     return 0
   fi
 
-  # Enable the service (start on boot)
-  if ! systemctl is-enabled "$service" &> /dev/null; then
-    systemctl enable "$service"
-    log_debug "Enabled $service"
-  fi
-
-  # Start or restart the service
+  # Enable and start atomically to prevent race condition
   if systemctl is-active "$service" &> /dev/null; then
     systemctl restart "$service"
     log_debug "Restarted $service"
   else
-    systemctl start "$service"
-    log_debug "Started $service"
+    systemctl enable --now "$service"
+    log_debug "Enabled and started $service"
   fi
 
   # Brief wait for the service to initialize
@@ -154,6 +148,34 @@ enable_code_server_for_user() {
 
   log_success "code-server enabled and running for $user"
   return 0
+}
+
+# ---------------------------------------------------------------------------
+# Per-user service teardown
+# ---------------------------------------------------------------------------
+
+# Disable and stop code-server for a specific user.
+# The inverse of enable_code_server_for_user().
+# Does not remove user data or home directory.
+# Params:
+#   $1 - Username to disable code-server for
+disable_code_server_for_user() {
+  local user="$1"
+
+  log_info "Disabling code-server for user: $user"
+
+  local service="code-server@${user}.service"
+
+  # In dry-run mode, just log what would be done
+  if [[ $DRY_RUN -eq 1 ]]; then
+    log_info "[DRY-RUN] Would stop and disable $service"
+    return 0
+  fi
+
+  systemctl stop "$service" 2>/dev/null || true
+  systemctl disable "$service" 2>/dev/null || true
+
+  log_success "code-server disabled for $user"
 }
 
 # ---------------------------------------------------------------------------

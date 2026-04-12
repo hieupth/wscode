@@ -37,8 +37,9 @@ check_platform() {
   arch=$(detect_arch)
 
   # Display the distribution name for informational purposes
-  eval "$(grep -E "^PRETTY_NAME=" /etc/os-release)"
-  log_success "Platform: $PRETTY_NAME (family: $family, arch: $arch)"
+  local pretty_name
+  pretty_name=$(grep -E "^PRETTY_NAME=" /etc/os-release | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'")
+  log_success "Platform: $pretty_name (family: $family, arch: $arch)"
 }
 
 # ---------------------------------------------------------------------------

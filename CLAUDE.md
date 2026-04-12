@@ -7,31 +7,33 @@ This file is for Claude Code context. For project documentation, see README.md.
 ## Quick Reference
 
 - **Config**: `/etc/webcode/config.env`
-- **Install**: `sudo ./src/setup.sh`
-- **Verify**: `sudo ./src/setup.sh --verify-only`
-- **Dry-run**: `sudo ./src/setup.sh --dry-run`
+- **Install**: `sudo ./src/webcode.sh install`
+- **Reload**: `sudo ./src/webcode.sh reload` (after editing users.allow)
+- **Uninstall**: `sudo ./src/webcode.sh uninstall`
+- **Verify**: `sudo ./src/webcode.sh verify`
+- **Dry-run**: append `--dry-run` to any command
 
 ## Project Structure
 
 ```
 webcode/
 ├── src/
-│   ├── setup.sh          # Entry point
+│   ├── webcode.sh        # CLI entry point (install, reload, uninstall)
 │   ├── test.sh           # Test suite
 │   ├── lib/              # All modules
 │   │   ├── common.sh     # Logging, config, OS/arch detection, pkg helpers, template rendering
+│   │   ├── state.sh      # State file management (active-users tracking, diff)
 │   │   ├── install.sh    # Binary downloads (code-server, cloudflared) + pkg management
 │   │   ├── preflight.sh  # Preflight checks
 │   │   ├── users.sh      # User environment setup
-│   │   ├── services.sh   # Systemd service management
+│   │   ├── services.sh   # Systemd service management (enable/disable per user)
 │   │   ├── acl.sh        # nftables localhost ACL
-│   │   ├── cloudflared.sh # Cloudflared config + service
+│   │   ├── cloudflared.sh # Cloudflared config + DNS route management + service
 │   │   ├── verify.sh     # Post-install verification
-│   │   └── rollback.sh   # Backup/rollback
+│   │   └── rollback.sh   # Backup/rollback (includes DNS cleanup)
 │   ├── templates/        # All template files (no inline heredocs)
 │   └── scripts/          # Docker test scripts
 ├── config/               # Config examples
-├── deprecated/           # Old bash scripts (to remove)
 └── specs/                # Architecture docs
 ```
 
@@ -39,6 +41,12 @@ webcode/
 
 - **OS**: Debian, Ubuntu, Raspbian, Manjaro, Arch, EndeavourOS
 - **Arch**: amd64 (x86_64), arm64 (aarch64)
+
+## Domain Pattern
+
+- **Format**: `{user}-{machine}.{zone}` (e.g., `alice-manjaropc.example.com`)
+- **DNS**: Per-user CNAME records created/deleted via Cloudflare API
+- **Username restriction**: No hyphens allowed (rejected by `is_valid_username()`)
 
 ## Coding Conventions
 

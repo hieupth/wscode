@@ -34,7 +34,7 @@ readonly VERSION="0.4.0"
 # Directory constants
 #
 # These are derived from the script location so they work regardless
-# of the current working directory when setup.sh is invoked.
+# of the current working directory when webcode.sh is invoked.
 # ---------------------------------------------------------------------------
 
 readonly SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,6 +56,7 @@ readonly ETC_CONFIG_DIR="/etc/webcode"
 readonly CONFIG_FILE="${ETC_CONFIG_DIR}/config.env"
 readonly USERS_ALLOW_FILE="${ETC_CONFIG_DIR}/users.allow"
 readonly USERS_DENY_FILE="${ETC_CONFIG_DIR}/users.deny"
+readonly ACTIVE_STATE_FILE="${ETC_CONFIG_DIR}/active-users.state"
 
 # ---------------------------------------------------------------------------
 # Global variables (mutable state)
@@ -416,7 +417,7 @@ user_exists() {
 #   0 if valid, 1 if invalid
 is_valid_username() {
   local username="$1"
-  [[ "$username" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]
+  [[ "$username" =~ ^[a-z_][a-z0-9_]*[$]?$ ]]
 }
 
 # Get the home directory for a user.
@@ -475,6 +476,8 @@ load_config() {
   [[ -z "${CF_TUNNEL_NAME:-}" ]] && error_exit "CF_TUNNEL_NAME is required in $CONFIG_FILE"
   [[ -z "${CF_DOMAIN_BASE:-}" ]] && error_exit "CF_DOMAIN_BASE is required in $CONFIG_FILE"
   [[ -z "${CF_CREDENTIALS_FILE:-}" ]] && error_exit "CF_CREDENTIALS_FILE is required in $CONFIG_FILE"
+  [[ -z "${CF_API_TOKEN:-}" ]] && error_exit "CF_API_TOKEN is required in $CONFIG_FILE"
+  [[ -z "${CF_ZONE_ID:-}" ]] && error_exit "CF_ZONE_ID is required in $CONFIG_FILE"
 
   # Verify the credentials file exists and has secure permissions
   assert_secure_file "$CF_CREDENTIALS_FILE" 600
@@ -593,6 +596,10 @@ get_user_port() {
   local username="$1"
   local uid
   uid=$(id -u "$username")
+  # Validate UID won't cause port overflow (max port = 65535)
+  if (( uid > 45535 )); then
+    error_exit "UID $uid for user $username would exceed max port 65535 (20000 + $uid = $((20000 + uid)))"
+  fi
   echo $((20000 + uid))
 }
 
@@ -622,7 +629,10 @@ backup_file() {
   local file="$1"
   [[ -f "$file" ]] || return 0
 
-  local backup_path="${BACKUP_DIR}/${TIMESTAMP}${file}"
+  # Resolve to absolute path to prevent path traversal
+  local abs_file
+  abs_file=$(realpath "$file")
+  local backup_path="${BACKUP_DIR}/${TIMESTAMP}${abs_file}"
   mkdir -p "$(dirname "$backup_path")"
   cp -a "$file" "$backup_path"
   log_debug "Backed up: $file"

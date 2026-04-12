@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 IMAGE_TAG="${IMAGE_TAG:-webcode:test}"
 DOCKERFILE="${DOCKERFILE:-Dockerfile.debian}"
-CREDS_FILE="/Users/hieupth/.cloudflared/7247b811-7392-435f-bb8f-ddb4aea79850.json"
+CREDS_FILE="${CREDS_FILE:?CREDS_FILE is required (path to cloudflared credential JSON)}"
 
 cd "$ROOT_DIR"
 

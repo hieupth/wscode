@@ -19,7 +19,7 @@ WORKDIR /workspace
 COPY . /workspace
 
 RUN chmod +x \
-    /workspace/src/setup.sh \
+    /workspace/src/webcode.sh \
     /workspace/src/test.sh \
     /workspace/src/scripts/docker-smoke.sh \
     /workspace/src/scripts/docker-test.sh

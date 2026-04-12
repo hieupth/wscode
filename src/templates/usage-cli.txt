@@ -1,0 +1,23 @@
+webcode v0.5.0 — Multi-user VS Code server with Cloudflare Tunnel
+
+Usage: sudo webcode <command> [options]
+
+Commands:
+  install        Full installation (preflight, install, configure, verify)
+  reload         Apply users.allow changes (add/remove DNS, services, ACL)
+  uninstall      Remove all webcode managed resources
+  verify         Verify installation status
+  rollback       Restore from latest backup
+  list-backups   Show available backups
+
+Global options:
+  --debug        Enable verbose debug output
+  --dry-run      Preview changes without executing
+  --help, -h     Show this help
+
+Examples:
+  sudo webcode install              # Fresh install
+  sudo webcode install --dry-run    # Preview install
+  sudo webcode reload               # Apply users.allow changes
+  sudo webcode uninstall            # Full cleanup
+  sudo webcode verify               # Check everything is running

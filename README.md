@@ -14,14 +14,21 @@ Each user gets a deterministic port based on their UID:
 
 | User | UID | Port | URL |
 |------|-----|------|-----|
-| alice | 1000 | 21000 | alice.domain.com |
-| bob | 1001 | 21001 | bob.domain.com |
-| charlie | 1002 | 21002 | charlie.domain.com |
+| alice | 1000 | 21000 | alice-manjaropc.example.com |
+| bob | 1001 | 21001 | bob-manjaropc.example.com |
 
 **Benefits:**
 - Deterministic - same user always gets same port
 - No collision - UIDs are unique, ports are unique
 - Zero config - calculated at runtime, no storage needed
+
+### Domain Pattern
+
+```
+{username}-{machine}.{zone}
+```
+
+Per-user DNS CNAME records are created/deleted automatically via Cloudflare API.
 
 ### System Overview
 
@@ -46,6 +53,9 @@ Each user gets a deterministic port based on their UID:
 │  │ cloudflared     │────────▶│ code-server (localhost) │   │
 │  │ systemd service │         │ :20000+ (bind 127.0.0.1)│   │
 │  └─────────────────┘         └─────────────────────────┘   │
+│  ┌─────────────────┐                                       │
+│  │ nftables ACL    │  User isolation (own port only)       │
+│  └─────────────────┘                                       │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -54,13 +64,22 @@ Each user gets a deterministic port based on their UID:
 ```
 webcode/
 ├── src/
-│   ├── setup.sh          # Entry point
+│   ├── webcode.sh        # CLI entry point
 │   ├── test.sh           # Test suite
 │   ├── lib/              # All modules (OS-agnostic)
+│   │   ├── common.sh     # Logging, config, OS/arch detection
+│   │   ├── state.sh      # State file management, user diffing
+│   │   ├── install.sh    # Binary downloads (code-server, cloudflared)
+│   │   ├── preflight.sh  # Preflight checks
+│   │   ├── users.sh      # User environment setup
+│   │   ├── services.sh   # Systemd service management
+│   │   ├── acl.sh        # nftables localhost ACL
+│   │   ├── cloudflared.sh # Tunnel config + DNS route management
+│   │   ├── verify.sh     # Post-install verification
+│   │   └── rollback.sh   # Backup/rollback
 │   ├── templates/        # Template files (no inline heredocs)
 │   └── scripts/          # Docker test scripts
 ├── config/               # Config examples
-├── deprecated/           # Old bash scripts (to remove)
 └── specs/                # Architecture docs
 ```
 
@@ -75,6 +94,7 @@ webcode/
 - Cloudflare account with Tunnel configured
 - Domain on Cloudflare
 - Tunnel credentials JSON file
+- Cloudflare API token (Zone:DNS:Edit permission)
 
 ## Quick Start
 
@@ -90,22 +110,54 @@ sudo chown root:root /etc/webcode/config.env /etc/webcode/creds.json
 echo "alice" | sudo tee /etc/webcode/users.allow
 
 # 3. Install
-sudo ./src/setup.sh
+sudo ./src/webcode.sh install
 
 # 4. Verify
-sudo ./src/setup.sh --verify-only
+sudo ./src/webcode.sh verify
+```
+
+## CLI Commands
+
+```bash
+sudo ./src/webcode.sh install          # Full installation
+sudo ./src/webcode.sh reload           # Apply users.allow changes
+sudo ./src/webcode.sh uninstall        # Remove everything
+sudo ./src/webcode.sh verify           # Check installation
+sudo ./src/webcode.sh install --dry-run # Preview changes
+```
+
+### Adding a new user
+
+```bash
+echo "newuser" | sudo tee -a /etc/webcode/users.allow
+sudo ./src/webcode.sh reload
+```
+
+### Removing a user
+
+```bash
+# Remove from allow list, then reload
+sudo sed -i '/username/d' /etc/webcode/users.allow
+sudo ./src/webcode.sh reload
 ```
 
 ## Docker Testing
 
 ```bash
-# Debian test
+# Debian smoke test
 docker build -f Dockerfile.debian -t webcode:debian .
 docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:debian
 
-# Manjaro test
+# Manjaro smoke test
 docker build -f Dockerfile.manjaro -t webcode:manjaro .
 docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:manjaro
+
+# Full integration test (code-server + cloudflared + curl)
+CF_TUNNEL_NAME="your-tunnel" \
+CF_DOMAIN_BASE="your-domain" \
+CF_TUNNEL_ID="your-tunnel-id" \
+CREDS_FILE="/path/to/creds.json" \
+src/scripts/docker-integration-run.sh
 ```
 
 ## License

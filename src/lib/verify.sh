@@ -4,7 +4,7 @@
 # Runs a suite of checks to verify that all components are correctly
 # installed and configured. Can be run in two modes:
 #   - Full mode (--verify-only): All checks including file permissions
-#   - Post-apply mode (called from setup.sh): Skips permission checks
+#   - Post-apply mode (called from webcode.sh): Skips permission checks
 #     since files were just created with correct permissions (fix 1.3)
 #
 # Checks performed:
@@ -73,7 +73,7 @@ verify_user_mapping_consistency() {
   for user in "${users[@]}"; do
     local port host
     port=$(get_user_port "$user")
-    host="${user}.${CF_DOMAIN_BASE}"
+    host="${user}-${CF_DOMAIN_BASE}"
 
     # Check for duplicate port (would mean two users with same UID)
     if [[ -n "${seen_ports[$port]:-}" ]]; then

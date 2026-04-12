@@ -118,14 +118,21 @@ install_code_server() {
   arch=$(detect_arch)
   log_info "Downloading code-server (${arch})..."
 
-  # Create a temporary directory for the download
-  local tmp_dir="/tmp/code-server-install-${TIMESTAMP}"
-  mkdir -p "$tmp_dir"
+  # Create a secure temporary directory for the download
+  local tmp_dir
+  tmp_dir=$(mktemp -d "/tmp/code-server-install-XXXXXX")
+
+  # Resolve the latest code-server version via GitHub API
+  # Asset naming convention: code-server-{VERSION}-linux-{ARCH}.tar.gz
+  local latest_version
+  latest_version=$(curl -fsSL "https://api.github.com/repos/coder/code-server/releases/latest" \
+    | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"v?([^"]+)".*/\1/')
+  [[ -n "$latest_version" ]] || error_exit "Failed to resolve latest code-server version"
 
   # Download the latest release tarball from GitHub
-  # URL format: code-server-linux-{arch}.tar.gz (resolves to latest via /latest/)
+  # URL format: code-server-{VERSION}-linux-{ARCH}.tar.gz
   curl -fsSL -o "${tmp_dir}/code-server.tar.gz" \
-    "https://github.com/coder/code-server/releases/latest/download/code-server-linux-${arch}.tar.gz"
+    "https://github.com/coder/code-server/releases/download/v${latest_version}/code-server-${latest_version}-linux-${arch}.tar.gz"
 
   # Extract the tarball
   tar -xzf "${tmp_dir}/code-server.tar.gz" -C "$tmp_dir"

@@ -166,12 +166,22 @@ rollback_to_backup() {
 # ---------------------------------------------------------------------------
 
 # Perform automatic rollback to the latest available backup.
-# Typically called from the cleanup trap in setup.sh when the
+# Cleans up DNS routes before restoring files to avoid orphaned records.
+# Typically called from the cleanup trap in webcode.sh when the
 # installation fails.
 # Returns:
 #   0 on success, 1 if no backups available or rollback fails
 auto_rollback() {
   log_info "Attempting automatic rollback..."
+
+  # Clean up DNS routes first (uses current config to find hostnames)
+  # This removes CNAME records that point to this machine's tunnel,
+  # preventing orphaned DNS records after rollback.
+  if [[ -n "${CF_API_TOKEN:-}" ]] && [[ -n "${CF_ZONE_ID:-}" ]]; then
+    cleanup_all_dns_routes || log_warn "DNS cleanup failed during rollback (manual cleanup may be needed)"
+  else
+    log_warn "CF_API_TOKEN/CF_ZONE_ID not set — skipping DNS cleanup. Remove DNS records manually if needed."
+  fi
 
   # Find the latest backup
   local latest

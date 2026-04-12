@@ -10,7 +10,7 @@ ROOT_DIR="/workspace"
 cd "$ROOT_DIR"
 
 echo "[docker-smoke] Running shell syntax checks..."
-for s in src/setup.sh src/test.sh src/lib/*.sh src/scripts/*.sh; do
+for s in src/webcode.sh src/test.sh src/lib/*.sh src/scripts/*.sh; do
   bash -n "$s" || { echo "[docker-smoke] FAIL: Syntax error in $s"; exit 1; }
 done
 echo "[docker-smoke] Syntax checks passed"
@@ -45,6 +45,6 @@ chown root:root /etc/webcode/users.allow
 echo "[docker-smoke] Running installer in dry-run mode (CI-safe)..."
 WEBCODE_SKIP_SYSTEMD_CHECK=1 \
 WEBCODE_SKIP_NETWORK_CHECK=1 \
-bash src/setup.sh --dry-run
+bash src/webcode.sh install --dry-run
 
 echo "[docker-smoke] Done."
