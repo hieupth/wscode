@@ -111,7 +111,7 @@ verify_systemd_services() {
   else
     log_error "cloudflared not active"
     systemctl status cloudflared --no-pager || true
-    ((failed++))
+    failed=$((failed + 1))
   fi
 
   # Check each user's code-server instance
@@ -126,7 +126,7 @@ verify_systemd_services() {
     else
       log_error "$service not active"
       systemctl status "$service" --no-pager || true
-      ((failed++))
+      failed=$((failed + 1))
     fi
   done
 
@@ -164,7 +164,7 @@ verify_code_server_endpoints() {
       log_success "$user (port $port) - HTTP OK"
     else
       log_error "$user (port $port) - Not responding"
-      ((failed++))
+      failed=$((failed + 1))
     fi
   done
 

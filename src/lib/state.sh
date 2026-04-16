@@ -73,7 +73,7 @@ write_active_state() {
   chmod 600 "$state_file"
   chown root:root "$state_file"
 
-  log_debug "State file updated with ${#users[@]} user(s)"
+  log_info "State file updated: $state_file (${#users[@]} user(s))"
 }
 
 # ---------------------------------------------------------------------------

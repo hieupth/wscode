@@ -200,21 +200,42 @@ check_user_list_files() {
 # Preflight orchestration
 # ---------------------------------------------------------------------------
 
-# Run all preflight checks in the correct order.
-# Order matters: platform first (to verify OS support), then
-# systemd, then dependencies (which may need the OS info),
-# then network, then user lists (which need config),
-# then ports (which need the user list).
-run_preflight_checks() {
-  log_info "=== Preflight checks ==="
+# Run system-level preflight checks that do NOT require configuration.
+# These verify the system is capable of running webcode:
+#   - Platform (OS + architecture)
+#   - Systemd availability
+#   - Basic system dependencies
+#   - Network connectivity
+run_preflight_system_checks() {
+  log_info "=== System preflight checks ==="
 
   check_platform
   check_systemd_available
   check_dependencies
   check_network
+
+  log_success "=== System preflight checks passed ==="
+}
+
+# Run configuration preflight checks that REQUIRE config files.
+# These verify the webcode configuration is valid:
+#   - User list files (users.allow)
+#   - Configuration file (config.env)
+#   - Credentials file (creds.json)
+#   - Port assignments
+run_preflight_config_checks() {
+  log_info "=== Configuration preflight checks ==="
+
   check_user_list_files
   load_config
   check_ports
 
-  log_success "=== All preflight checks passed ==="
+  log_success "=== Configuration preflight checks passed ==="
+}
+
+# Run all preflight checks (system + config).
+# Used by reload, verify, and other commands that need the full check.
+run_preflight_checks() {
+  run_preflight_system_checks
+  run_preflight_config_checks
 }

@@ -154,8 +154,11 @@ rollback_to_backup() {
   [[ $restored -eq 0 ]] && { log_warn "No files restored"; return 1; }
 
   # Reload systemd and restart affected services
+  log_info "Reloading systemd daemon..."
   systemctl daemon-reload
+  log_info "Restarting webcode-acl service..."
   systemctl restart webcode-acl.service || true
+  log_info "Restarting cloudflared service..."
   systemctl restart cloudflared || true
 
   log_success "Rollback complete: $restored file(s)"
@@ -234,7 +237,7 @@ clean_old_backups() {
       log_info "Removed: ${backups[$i]}"
     }
 
-    ((removed++))
+    removed=$((removed + 1))
   done
 
   log_success "Cleaned $removed old backup(s)"

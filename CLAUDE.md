@@ -7,18 +7,18 @@ This file is for Claude Code context. For project documentation, see README.md.
 ## Quick Reference
 
 - **Config**: `/etc/webcode/config.env`
-- **Install**: `sudo ./src/webcode.sh install`
-- **Reload**: `sudo ./src/webcode.sh reload` (after editing users.allow)
-- **Uninstall**: `sudo ./src/webcode.sh uninstall`
-- **Verify**: `sudo ./src/webcode.sh verify`
+- **Install**: `sudo ./webcode.sh install`
+- **Reload**: `sudo ./webcode.sh reload` (after editing users.allow)
+- **Uninstall**: `sudo ./webcode.sh uninstall`
+- **Verify**: `sudo ./webcode.sh verify`
 - **Dry-run**: append `--dry-run` to any command
 
 ## Project Structure
 
 ```
 webcode/
+├── webcode.sh            # CLI entry point (install, reload, uninstall)
 ├── src/
-│   ├── webcode.sh        # CLI entry point (install, reload, uninstall)
 │   ├── test.sh           # Test suite
 │   ├── lib/              # All modules
 │   │   ├── common.sh     # Logging, config, OS/arch detection, pkg helpers, template rendering

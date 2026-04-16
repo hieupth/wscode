@@ -400,7 +400,7 @@ restart_cloudflared() {
       fi
     fi
     sleep 1
-    ((waited++))
+    waited=$((waited + 1))
   done
 
   # Final check — service might be running even if we didn't catch the log

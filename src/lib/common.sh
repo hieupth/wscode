@@ -77,6 +77,11 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 # Minimum code-server version required for compatibility.
 readonly MIN_CODESERVER_VERSION="4.0.0"
 
+# Tracks which installation stage is currently executing.
+# Set by cmd_install() before each major step so the cleanup trap
+# can report which stage failed.
+CURRENT_STAGE="init"
+
 # ---------------------------------------------------------------------------
 # Logging functions
 #
@@ -347,17 +352,25 @@ version_compare() {
 # ---------------------------------------------------------------------------
 
 # Detect the code-server binary path.
-# Searches PATH only — no hardcoded fallback paths needed.
+# Searches PATH first, then falls back to known install location.
 # Output:
 #   Full path to code-server binary (e.g., "/usr/local/bin/code-server")
 # Returns:
 #   0 if found, 1 if not found
 detect_codeserver_binary() {
+  # Try PATH lookup first
   if command_exists code-server; then
     command -v code-server
     return 0
   fi
-  log_error "code-server binary not found in PATH"
+
+  # Fallback: check known install location (may not be in PATH on minimal systems)
+  if [[ -x /usr/local/bin/code-server ]]; then
+    echo "/usr/local/bin/code-server"
+    return 0
+  fi
+
+  log_error "code-server binary not found in PATH or /usr/local/bin"
   return 1
 }
 
@@ -579,7 +592,9 @@ get_enabled_users() {
     error_exit "Allowlist is empty or missing: $allow_file"
   fi
 
-  printf '%s\n' "${users[@]}"
+  if [[ ${#users[@]} -gt 0 ]]; then
+    printf '%s\n' "${users[@]}"
+  fi
 }
 
 # ---------------------------------------------------------------------------

@@ -39,19 +39,23 @@ setup_user_environment() {
   local home
   home=$(get_user_home "$user")
   [[ -d "$home" ]] || { log_warn "Home directory missing for $user"; return 1; }
+  log_info "Home directory: $home"
 
   # Get the user's primary group for ownership
   local group
   group=$(id -gn "$user")
+  log_info "User group: $group"
 
   # In dry-run mode, just log what would be done
   [[ $DRY_RUN -eq 1 ]] && { log_info "[DRY-RUN] Would setup $user"; return 0; }
 
   # Create the extensions directory with secure permissions
   # Mode 700 ensures only the user can access their extensions
-  execute mkdir -p "$home/.local/share/code-server/extensions"
-  execute chmod 700 "$home/.local/share/code-server/extensions"
-  execute chown "$user:$group" "$home/.local/share/code-server/extensions"
+  local ext_dir="$home/.local/share/code-server/extensions"
+  log_info "Creating extensions directory: $ext_dir"
+  execute mkdir -p "$ext_dir"
+  execute chmod 700 "$ext_dir"
+  execute chown "$user:$group" "$ext_dir"
 
   log_success "Environment ready for $user"
 }

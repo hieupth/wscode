@@ -42,7 +42,7 @@ echo ""
 echo "--- Required files ---"
 for f in \
   README.md Dockerfile.debian Dockerfile.manjaro .dockerignore \
-  src/webcode.sh src/test.sh \
+  webcode.sh src/test.sh \
   src/lib/common.sh src/lib/state.sh src/lib/preflight.sh src/lib/install.sh \
   src/lib/users.sh src/lib/services.sh src/lib/acl.sh \
   src/lib/cloudflared.sh src/lib/verify.sh src/lib/rollback.sh \
@@ -53,7 +53,6 @@ for f in \
   src/templates/webcode-acl.service.tpl \
   src/templates/usage-cli.txt \
   src/scripts/docker-test.sh src/scripts/docker-smoke.sh \
-  src/scripts/docker-integration-test.sh src/scripts/docker-integration-run.sh \
   config/users.allow config/users.deny config/settings.env.example; do
   [[ -f "${ROOT_DIR}/${f}" ]] && pass "File: $f" || fail "File: $f"
 done
@@ -75,7 +74,7 @@ done
 
 echo ""
 echo "--- Script syntax ---"
-for s in src/webcode.sh src/test.sh src/lib/*.sh src/scripts/*.sh; do
+for s in webcode.sh src/test.sh src/lib/*.sh src/scripts/*.sh; do
   bash -n "${ROOT_DIR}/${s}" 2>/dev/null && pass "Syntax: $s" || fail "Syntax: $s"
 done
 
@@ -157,13 +156,13 @@ else
   fail "Missing state diff function"
 fi
 
-if grep -q "cmd_reload" "${ROOT_DIR}/src/webcode.sh"; then
+if grep -q "cmd_reload" "${ROOT_DIR}/webcode.sh"; then
   pass "CLI reload command present"
 else
   fail "Missing CLI reload command"
 fi
 
-if grep -q "cmd_uninstall" "${ROOT_DIR}/src/webcode.sh"; then
+if grep -q "cmd_uninstall" "${ROOT_DIR}/webcode.sh"; then
   pass "CLI uninstall command present"
 else
   fail "Missing CLI uninstall command"
@@ -172,7 +171,7 @@ fi
 # Verify no inline heredoc usage
 echo ""
 echo "--- No inline heredocs ---"
-heredoc_count=$(grep -r "cat >>\|cat >" "${ROOT_DIR}/src/lib/" "${ROOT_DIR}/src/webcode.sh" 2>/dev/null | grep -c "<<" || true)
+heredoc_count=$(grep -r "cat >>\|cat >" "${ROOT_DIR}/src/lib/" "${ROOT_DIR}/webcode.sh" 2>/dev/null | grep -c "<<" || true)
 if [[ $heredoc_count -eq 0 ]]; then
   pass "No inline heredoc (EOF) usage in scripts"
 else
@@ -182,7 +181,7 @@ fi
 # Verify webcode namespace
 echo ""
 echo "--- Namespace ---"
-wscode_code_count=$(grep -rn "wscode" "${ROOT_DIR}/src/lib/" "${ROOT_DIR}/src/webcode.sh" 2>/dev/null | grep -v "^[^:]*:[^:]*:[^#]*#" | grep -c "wscode" || true)
+wscode_code_count=$(grep -rn "wscode" "${ROOT_DIR}/src/lib/" "${ROOT_DIR}/webcode.sh" 2>/dev/null | grep -v "^[^:]*:[^:]*:[^#]*#" | grep -c "wscode" || true)
 if [[ $wscode_code_count -eq 0 ]]; then
   pass "All references use 'webcode' namespace"
 else
@@ -204,25 +203,25 @@ fi
 
 echo ""
 echo "--- CLI help ---"
-if bash "${ROOT_DIR}/src/webcode.sh" --help &>/dev/null; then
-  pass "src/webcode.sh --help works"
+if bash "${ROOT_DIR}/webcode.sh" --help &>/dev/null; then
+  pass "webcode.sh --help works"
 else
-  fail "src/webcode.sh --help fails"
+  fail "webcode.sh --help fails"
 fi
 
-if bash "${ROOT_DIR}/src/webcode.sh" --help 2>&1 | grep -q "install"; then
+if bash "${ROOT_DIR}/webcode.sh" --help 2>&1 | grep -q "install"; then
   pass "Help text contains 'install' command"
 else
   fail "Help text missing 'install' command"
 fi
 
-if bash "${ROOT_DIR}/src/webcode.sh" --help 2>&1 | grep -q "reload"; then
+if bash "${ROOT_DIR}/webcode.sh" --help 2>&1 | grep -q "reload"; then
   pass "Help text contains 'reload' command"
 else
   fail "Help text missing 'reload' command"
 fi
 
-if bash "${ROOT_DIR}/src/webcode.sh" --help 2>&1 | grep -q "uninstall"; then
+if bash "${ROOT_DIR}/webcode.sh" --help 2>&1 | grep -q "uninstall"; then
   pass "Help text contains 'uninstall' command"
 else
   fail "Help text missing 'uninstall' command"

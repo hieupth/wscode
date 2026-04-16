@@ -63,8 +63,8 @@ Per-user DNS CNAME records are created/deleted automatically via Cloudflare API.
 
 ```
 webcode/
+├── webcode.sh            # CLI entry point
 ├── src/
-│   ├── webcode.sh        # CLI entry point
 │   ├── test.sh           # Test suite
 │   ├── lib/              # All modules (OS-agnostic)
 │   │   ├── common.sh     # Logging, config, OS/arch detection
@@ -110,27 +110,27 @@ sudo chown root:root /etc/webcode/config.env /etc/webcode/creds.json
 echo "alice" | sudo tee /etc/webcode/users.allow
 
 # 3. Install
-sudo ./src/webcode.sh install
+sudo ./webcode.sh install
 
 # 4. Verify
-sudo ./src/webcode.sh verify
+sudo ./webcode.sh verify
 ```
 
 ## CLI Commands
 
 ```bash
-sudo ./src/webcode.sh install          # Full installation
-sudo ./src/webcode.sh reload           # Apply users.allow changes
-sudo ./src/webcode.sh uninstall        # Remove everything
-sudo ./src/webcode.sh verify           # Check installation
-sudo ./src/webcode.sh install --dry-run # Preview changes
+sudo ./webcode.sh install          # Full installation
+sudo ./webcode.sh reload           # Apply users.allow changes
+sudo ./webcode.sh uninstall        # Remove everything
+sudo ./webcode.sh verify           # Check installation
+sudo ./webcode.sh install --dry-run # Preview changes
 ```
 
 ### Adding a new user
 
 ```bash
 echo "newuser" | sudo tee -a /etc/webcode/users.allow
-sudo ./src/webcode.sh reload
+sudo ./webcode.sh reload
 ```
 
 ### Removing a user
@@ -138,7 +138,7 @@ sudo ./src/webcode.sh reload
 ```bash
 # Remove from allow list, then reload
 sudo sed -i '/username/d' /etc/webcode/users.allow
-sudo ./src/webcode.sh reload
+sudo ./webcode.sh reload
 ```
 
 ## Docker Testing

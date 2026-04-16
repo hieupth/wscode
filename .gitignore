@@ -31,3 +31,7 @@
 *.out
 *.app
 deprecated
+
+# Secrets — never commit
+settings.env
+token.txt

@@ -17,23 +17,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source all library modules
-source "${SCRIPT_DIR}/lib/common.sh"
-source "${SCRIPT_DIR}/lib/state.sh"
-source "${SCRIPT_DIR}/lib/preflight.sh"
-source "${SCRIPT_DIR}/lib/install.sh"
-source "${SCRIPT_DIR}/lib/users.sh"
-source "${SCRIPT_DIR}/lib/services.sh"
-source "${SCRIPT_DIR}/lib/acl.sh"
-source "${SCRIPT_DIR}/lib/cloudflared.sh"
-source "${SCRIPT_DIR}/lib/verify.sh"
-source "${SCRIPT_DIR}/lib/rollback.sh"
+source "${SCRIPT_DIR}/src/lib/common.sh"
+source "${SCRIPT_DIR}/src/lib/state.sh"
+source "${SCRIPT_DIR}/src/lib/preflight.sh"
+source "${SCRIPT_DIR}/src/lib/install.sh"
+source "${SCRIPT_DIR}/src/lib/users.sh"
+source "${SCRIPT_DIR}/src/lib/services.sh"
+source "${SCRIPT_DIR}/src/lib/acl.sh"
+source "${SCRIPT_DIR}/src/lib/cloudflared.sh"
+source "${SCRIPT_DIR}/src/lib/verify.sh"
+source "${SCRIPT_DIR}/src/lib/rollback.sh"
 
 # ---------------------------------------------------------------------------
 # Usage display
 # ---------------------------------------------------------------------------
 
 usage() {
-  cat "${SCRIPT_DIR}/templates/usage-cli.txt"
+  cat "${SCRIPT_DIR}/src/templates/usage-cli.txt"
   exit 0
 }
 
@@ -65,7 +65,7 @@ done
 cleanup() {
   local exit_code=$?
   if [[ $exit_code -ne 0 ]] && [[ "$COMMAND" == "install" ]] && [[ $DRY_RUN -eq 0 ]]; then
-    log_error "Installation failed with exit code $exit_code"
+    log_error "Installation failed at stage '${CURRENT_STAGE}' with exit code $exit_code"
     if [[ -d "$BACKUP_DIR" ]] && [[ -n "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]]; then
       log_info "Attempting automatic rollback..."
       if auto_rollback; then
@@ -79,6 +79,18 @@ cleanup() {
   fi
 }
 
+# Log the command that caused a non-zero exit (triggered by set -e).
+# This fires BEFORE the EXIT trap, so the user sees exactly what failed.
+on_error() {
+  local exit_code=$?
+  # Skip if this is a non-install command or dry-run
+  [[ "$COMMAND" != "install" ]] || [[ $DRY_RUN -eq 1 ]] && return $exit_code
+  log_error "Command failed (exit ${exit_code}): ${BASH_COMMAND}"
+  log_error "  at ${BASH_SOURCE[1]:-webcode.sh}:${BASH_LINENO[0]:-unknown}"
+  return $exit_code
+}
+
+trap on_error ERR
 trap cleanup EXIT
 
 # ---------------------------------------------------------------------------
@@ -101,22 +113,31 @@ cmd_install() {
     log_info ""
   fi
 
-  # Step 1: Preflight checks
-  run_preflight_checks
+  # Phase 1: System checks + binary installation (no config needed)
+  CURRENT_STAGE="preflight"
+  run_preflight_system_checks
 
-  # Step 2: Install dependencies
+  CURRENT_STAGE="install_binaries"
   install_all
 
+  # Phase 2: Config validation + service setup
+  CURRENT_STAGE="config_validation"
+  run_preflight_config_checks
+
   # Step 3: Set up user environments
+  CURRENT_STAGE="setup_users"
   setup_all_users
 
   # Step 4: Configure systemd services
+  CURRENT_STAGE="setup_services"
   setup_code_server_services
 
   # Step 5: Apply localhost ACL
+  CURRENT_STAGE="setup_acl"
   setup_local_port_acl
 
   # Step 6: Configure cloudflared tunnel + DNS routes
+  CURRENT_STAGE="setup_cloudflared"
   setup_cloudflared
 
   # Step 7: Write state file
