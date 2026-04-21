@@ -4,12 +4,17 @@
 # on localhost. Each user can only connect to their own code-server port.
 #
 # Template variables:
-#   {{CLOUDFLARED_RULES}} - Rules for cloudflared UID (empty if running as root)
-#   {{USER_RULES}}        - Per-user accept rules (generated dynamically)
+#   CLOUDFLARED_RULES - Rules for cloudflared UID (empty if running as root)
+#   USER_RULES        - Per-user accept rules (generated dynamically)
 
 table inet webcode {
   chain output {
     type filter hook output priority 0; policy accept;
+
+    # Allow established/related connections (responses to permitted requests).
+    # Without this, server response packets to client ephemeral ports in the
+    # 20000-65535 range would be rejected by the default deny rule below.
+    ct state established,related accept
 
     # Root always needs local access for operations and health checks.
     # This includes cloudflared tunnel routing and system monitoring.

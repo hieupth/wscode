@@ -32,15 +32,15 @@ get_state_file_path() {
 # Params:
 #   $1 - Name of the array variable to populate (nameref)
 read_active_state() {
-  local -n out_ref="$1"
+  local -n _state_ref="$1"
 
-  out_ref=()
+  _state_ref=()
 
   # No state file means no users were previously installed
   [[ -f "$ACTIVE_STATE_FILE" ]] || return 0
 
   # Reuse the same parser as users.allow
-  read_list_file "$ACTIVE_STATE_FILE" out_ref
+  read_list_file "$ACTIVE_STATE_FILE" _state_ref
 }
 
 # ---------------------------------------------------------------------------

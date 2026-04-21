@@ -19,7 +19,7 @@ This file is for Claude Code context. For project documentation, see README.md.
 webcode/
 ├── webcode.sh            # CLI entry point (install, reload, uninstall)
 ├── src/
-│   ├── test.sh           # Test suite
+│   ├── test.sh           # Integration test (real install + tunnel verification)
 │   ├── lib/              # All modules
 │   │   ├── common.sh     # Logging, config, OS/arch detection, pkg helpers, template rendering
 │   │   ├── state.sh      # State file management (active-users tracking, diff)
@@ -31,8 +31,7 @@ webcode/
 │   │   ├── cloudflared.sh # Cloudflared config + DNS route management + service
 │   │   ├── verify.sh     # Post-install verification
 │   │   └── rollback.sh   # Backup/rollback (includes DNS cleanup)
-│   ├── templates/        # All template files (no inline heredocs)
-│   └── scripts/          # Docker test scripts
+│   └── templates/        # All template files (no inline heredocs)
 ├── config/               # Config examples
 └── specs/                # Architecture docs
 ```

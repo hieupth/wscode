@@ -1,7 +1,0 @@
-.git
-.gitignore
-state/backups
-settings.env
-token.txt
-*.env
-!config/settings.env.example

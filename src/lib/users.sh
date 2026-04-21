@@ -51,11 +51,12 @@ setup_user_environment() {
 
   # Create the extensions directory with secure permissions
   # Mode 700 ensures only the user can access their extensions
-  local ext_dir="$home/.local/share/code-server/extensions"
+  local cs_dir="$home/.local/share/code-server"
+  local ext_dir="$cs_dir/extensions"
   log_info "Creating extensions directory: $ext_dir"
   execute mkdir -p "$ext_dir"
+  execute chown -R "$user:$group" "$cs_dir"
   execute chmod 700 "$ext_dir"
-  execute chown "$user:$group" "$ext_dir"
 
   log_success "Environment ready for $user"
 }

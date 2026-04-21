@@ -65,7 +65,7 @@ Per-user DNS CNAME records are created/deleted automatically via Cloudflare API.
 webcode/
 ├── webcode.sh            # CLI entry point
 ├── src/
-│   ├── test.sh           # Test suite
+│   ├── test.sh           # Integration test (real install + tunnel verification)
 │   ├── lib/              # All modules (OS-agnostic)
 │   │   ├── common.sh     # Logging, config, OS/arch detection
 │   │   ├── state.sh      # State file management, user diffing
@@ -77,8 +77,7 @@ webcode/
 │   │   ├── cloudflared.sh # Tunnel config + DNS route management
 │   │   ├── verify.sh     # Post-install verification
 │   │   └── rollback.sh   # Backup/rollback
-│   ├── templates/        # Template files (no inline heredocs)
-│   └── scripts/          # Docker test scripts
+│   └── templates/        # Template files (no inline heredocs)
 ├── config/               # Config examples
 └── specs/                # Architecture docs
 ```
@@ -141,23 +140,11 @@ sudo sed -i '/username/d' /etc/webcode/users.allow
 sudo ./webcode.sh reload
 ```
 
-## Docker Testing
+## Testing
 
 ```bash
-# Debian smoke test
-docker build -f Dockerfile.debian -t webcode:debian .
-docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:debian
-
-# Manjaro smoke test
-docker build -f Dockerfile.manjaro -t webcode:manjaro .
-docker run --rm -v /path/to/creds.json:/etc/webcode/creds.json:ro webcode:manjaro
-
-# Full integration test (code-server + cloudflared + curl)
-CF_TUNNEL_NAME="your-tunnel" \
-CF_DOMAIN_BASE="your-domain" \
-CF_TUNNEL_ID="your-tunnel-id" \
-CREDS_FILE="/path/to/creds.json" \
-src/scripts/docker-integration-run.sh
+# Real integration test (creates user, installs, verifies tunnel, cleans up)
+sudo bash src/test.sh
 ```
 
 ## License

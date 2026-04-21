@@ -155,14 +155,25 @@ verify_code_server_endpoints() {
     local port
     port=$(get_user_port "$user")
 
-    # Try healthz endpoint first (standard code-server health check)
-    if curl -f -s -o /dev/null --connect-timeout 5 "http://127.0.0.1:${port}/healthz" 2>/dev/null; then
-      log_success "$user (port $port) - healthz OK"
-    # Fallback to basic HTTP check (any HTTP response)
-    elif curl -f -s -o /dev/null --connect-timeout 5 "http://127.0.0.1:${port}" 2>/dev/null || \
-         curl -I -s --connect-timeout 5 "http://127.0.0.1:${port}" 2>/dev/null | grep -q "HTTP"; then
-      log_success "$user (port $port) - HTTP OK"
-    else
+    local ok=0
+    for attempt in 1 2 3; do
+      log_debug "Endpoint check attempt $attempt for $user on port $port"
+      # Try healthz endpoint first (standard code-server health check)
+      local http_code
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://127.0.0.1:${port}/healthz" 2>/dev/null || true)
+      log_debug "healthz returned HTTP $http_code"
+      if [[ "$http_code" =~ ^2 ]]; then
+        log_success "$user (port $port) - healthz OK"
+        ok=1; break
+      # Fallback to basic HTTP check (any HTTP response)
+      elif [[ "$http_code" != "000" ]]; then
+        log_success "$user (port $port) - HTTP $http_code"
+        ok=1; break
+      fi
+      [[ $attempt -lt 3 ]] && sleep 2
+    done
+
+    if [[ $ok -eq 0 ]]; then
       log_error "$user (port $port) - Not responding"
       failed=$((failed + 1))
     fi

@@ -343,7 +343,11 @@ install_cloudflared_service() {
 
   # Install the service using cloudflared's built-in installer
   # No token needed — authentication is via credentials-file in config.yml
-  if ! systemctl list-unit-files | grep -q "^cloudflared.service"; then
+  if [[ -f /etc/systemd/system/cloudflared.service ]]; then
+    log_info "cloudflared service already installed, skipping install"
+  else
+    # Uninstall any remnants (cloudflared-update.service) that block reinstall
+    cloudflared service uninstall 2>/dev/null || true
     cloudflared service install
   fi
 

@@ -301,6 +301,9 @@ cmd_uninstall() {
   log_info "Stopping cloudflared..."
   systemctl stop cloudflared 2>/dev/null || true
   systemctl disable cloudflared 2>/dev/null || true
+  systemctl stop cloudflared-update.timer 2>/dev/null || true
+  systemctl disable cloudflared-update.timer 2>/dev/null || true
+  systemctl stop cloudflared-update.service 2>/dev/null || true
 
   # Stop and disable ACL
   log_info "Stopping ACL service..."
@@ -316,6 +319,8 @@ cmd_uninstall() {
   rm -rf /etc/systemd/system/code-server@.service.d
   rm -f /etc/systemd/system/cloudflared.service
   rm -rf /etc/systemd/system/cloudflared.service.d
+  rm -f /etc/systemd/system/cloudflared-update.service
+  rm -f /etc/systemd/system/cloudflared-update.timer
   rm -f /etc/systemd/system/webcode-acl.service
 
   # Remove generated configs
